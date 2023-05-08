@@ -100,7 +100,7 @@ def wrangle_zillow():
     df = get_zillow_data()
     
     #rename columns to something less unwieldy
-    df.columns = ['bedroom_cnt', 'bathroom_cnt', 'square_feet', 'tax_value_cnt', 'year_built', 'tax_amount', 'fips']
+    df.columns = ['bedrooms', 'bathrooms', 'square_feet', 'tax_value', 'year_built', 'tax_amount', 'county']
     
     # decided to drop all nulls since it was < 1% of data
     df = df.dropna()
@@ -109,24 +109,33 @@ def wrangle_zillow():
     for col in df.columns [df.columns != 'bathroom_cnt']:
         df[col] = df[col].astype(int)
     
-    # fips really should be a categorical, like a string
-    df.fips = df.fips.astype(str)
+    # fips really should be a categorical, since it represents a county in California
+    df.county = df.county.map({6037: 'LA', 6059: 'Orange', 6111: 'Ventura'})
+
+    # After visualization, I've decided to drop some outliers
+    # - square_feet> 25_000 AND the top 5% of tax_values
+    df = df [df.square_feet < 25_000]
+    df = df [df.tax_value < df.tax_value.quantile(.95)]
     
     return df
 
 
-def split_function(df, target_var):
+def split_function(df, target_var=''):
     """
     This function will
-    - take in a dataframe (df) and a string (target_var)
+    - take in a dataframe (df)
+    - option to accept a target_var in string format
     - split the dataframe into 3 data frames: train (60%), validate (20%), test (20%)
-    -   while stratifying on the target_var
+    -   while stratifying on the target_var (if present)
     - And finally return the three dataframes in order: train, validate, test
     """
-    train, test = train_test_split(df, random_state=42, test_size=.2, stratify=df[target_var])
-    
-    train, validate = train_test_split(train, random_state=42, test_size=.25, stratify=train[target_var])
-
+    if len(target_var)>0:
+        train, test = train_test_split(df, random_state=42, test_size=.2, stratify=df[target_var])
+        train, validate = train_test_split(train, random_state=42, test_size=.25, stratify=train[target_var])
+    else:
+        train, test = train_test_split(df, random_state=42, test_size=.2)
+        train, validate = train_test_split(train, random_state=42, test_size=.25)        
+        
     print(f'Prepared df: {df.shape}')
     print()
     print(f'Train: {train.shape}')
