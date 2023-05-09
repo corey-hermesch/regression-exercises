@@ -87,13 +87,13 @@ def wrangle_zillow():
     - 4. changes the datatype to int for all but one column
     
     - returns a df that looks like this:
-        - bedroom_cnt - int
-        - bathroom_cnt - float
+        - bedrooms - int
+        - bathrooms - float
         - square_feet - int
-        - tax_value_cnt - int
+        - tax_value - int
         - year_built - int
         - tax_amount - int
-        - fips - int
+        - county - string
     """
 
     # first get the data from csv or sql
@@ -106,16 +106,23 @@ def wrangle_zillow():
     df = df.dropna()
     
     # most columns can/should be integers; exception was bathroom_cnt which I left as a float
-    for col in df.columns [df.columns != 'bathroom_cnt']:
+    for col in df.columns [df.columns != 'bathrooms']:
         df[col] = df[col].astype(int)
     
-    # fips really should be a categorical, since it represents a county in California
+    # county really should be a categorical, since it represents a county in California
     df.county = df.county.map({6037: 'LA', 6059: 'Orange', 6111: 'Ventura'})
 
     # After visualization, I've decided to drop some outliers
     # - square_feet> 25_000 AND the top 5% of tax_values
     df = df [df.square_feet < 25_000]
     df = df [df.tax_value < df.tax_value.quantile(.95)]
+    
+    # reorder the columns to put the target at the end (prior to adding the dummy columns)
+    df = df[['bedrooms', 'bathrooms', 'square_feet', 'year_built', 'tax_amount', 'county', 'tax_value']]
+    
+    # make dummy columns for the categorical column, 'county'
+    dummy_df = pd.get_dummies(df[['county']], drop_first=True)
+    df = pd.concat([df, dummy_df], axis=1)
     
     return df
 
